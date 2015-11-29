@@ -1,6 +1,6 @@
 <section>
 
-<h2>社内でitamaeプラグイン作ってる話</h2>
+<h2>社内itamaeプラグインとか作ってる話</h2>
 
 <p>sue445</p>
 
@@ -18,7 +18,7 @@
 <a href="https://twitter.com/sue445">sue445</a>
 
 <ul>
-<li>【警告】Twitterは上級者向けのアカウントなので決してフォローしないでください！</li>
+<li>Ruby歴3年半、golang歴3ヶ月、Go歴33年(33歳)</li>
 </ul>
 </li>
 <li>
@@ -27,11 +27,12 @@
 
 <ul>
 <li>インフラ、アプリ、ライブラリ、社内ツールetc</li>
-<li>最近はアプリの改善系がメイン</li>
 </ul>
 </li>
-<li>TDDおじさん</li>
-<li>会社ではプリキュアおじさんと呼ばれています</li>
+<li>月1〜2個くらいgemを作ってる</li>
+<li>Rubyでプリキュアを作ったことで有名 (<a href="http://sue445.hatenablog.com/entry/2013/12/16/000011">rubicure</a>) <a href="http://b.hatena.ne.jp/entry/http://sue445.hatenablog.com/entry/2013/12/16/000011"><img src="http://b.hatena.ne.jp/entry/image/large/http://sue445.hatenablog.com/entry/2013/12/16/000011" alt="hatebu"></a>
+</li>
+<li>最近golangでGo! プリンセスプリキュアを作った (<a href="http://sue445.hatenablog.com/entry/2015/12/07/000000">GoPrecure</a>)  <a href="http://b.hatena.ne.jp/entry/http://sue445.hatenablog.com/entry/2015/12/07/000000"><img src="http://b.hatena.ne.jp/entry/image/large/http://sue445.hatenablog.com/entry/2015/12/07/000000" alt="hatebu"></a>【NEW!】</li>
 </ul>
 
 </section>
@@ -52,6 +53,305 @@
 <section>
 
 <h2>Agenda</h2>
+
+<p>だいたい作ったgemの紹介するだけです</p>
+
+<ul>
+<li>ドリコムプロビジョニング勢力図</li>
+<li>俺のitamaeの実行方法</li>
+<li>itamaeモンキーパッチgem系
+
+<ul>
+<li>
+<code>specinfra-plain_sudo</code>（社内gem）</li>
+<li>
+<code>drecom-itamae</code>（社内gem）</li>
+</ul>
+</li>
+<li>その他便利なプラグイン
+
+<ul>
+<li>
+<code>itamae-plugin-recipe-drecom_rails</code>（社内gem）</li>
+<li>
+<code>itamae-plugin-resource-encrypted_remote_file</code> (OSS)</li>
+</ul>
+</li>
+</ul>
+
+</section>
+<section>
+
+<h2>ドリコムプロビジョニング勢力図</h2>
+
+<ul>
+<li>ほとんどがChef</li>
+<li>一部Ansible</li>
+<li>個人レベルでitamae (今日はこの話)</li>
+</ul>
+
+</section>
+<section>
+
+<h2>俺のitamaeの実行方法</h2>
+
+<p>Ralefileでhosts.ymlを読み込んでrake taskを動的生成</p>
+
+<h3>hosts.yml</h3>
+<pre><code class="yml">staging:
+  - hostname:   myapp-staging-01
+    ip_address: xxx.xxx.xxx.xxx
+    role_suite: staging
+production:
+  - hostname:   myapp-01
+    ip_address: xxx.xxx.xxx.xxx
+    role_suite: production_master
+  - hostname:   myapp-02
+    ip_address: xxx.xxx.xxx.xxx
+    role_suite: production_slave
+</code></pre>
+</section>
+<section>
+
+<h3>Usage</h3>
+<pre><code class="sh">rake recipe:production                       # Run itamae recipes to [production] all
+rake recipe:production:myapp-01              # Run itamae recipes to [production] myapp-01 (xxx.xxx.xxx.xxx)
+rake recipe:production:myapp-02              # Run itamae recipes to [production] myapp-02 (xxx.xxx.xxx.xxx)
+rake recipe:staging                          # Run itamae recipes to [staging] all
+rake recipe:staging:myapp-staging-01         # Run itamae recipes to [staging] myapp-staging-01 (xxx.xxx.xxx.xxx)
+rake spec:production                         # Run serverspec tests to [production] all
+rake spec:production:myapp-01                # Run serverspec tests to [production] myapp-01 (xxx.xxx.xxx.xxx)
+rake spec:production:myapp-02                # Run serverspec tests to [production] myapp-02 (xxx.xxx.xxx.xxx)
+rake spec:staging                            # Run serverspec tests to [staging] all
+rake spec:staging:myapp-staging-01           # Run serverspec tests to [staging] myapp-staging-03 (xxx.xxx.xxx.xxx)
+</code></pre>
+<ul>
+<li>ソース: <a href="https://gist.github.com/sue445/39ff664b462ab7fb230b">https://gist.github.com/sue445/39ff664b462ab7fb230b</a></li>
+</ul>
+
+</section>
+<section>
+
+<h2>itamaeモンキーパッチgem系</h2>
+
+</section>
+<section>
+
+<h3>会社でitamae使う時に困ったこと</h3>
+
+<ul>
+<li>ssh経由で実行すると <code>sudo /bin/sh -c &lt;元のコマンド&gt;</code> がうちのインフラだと一部OSでエラーになる
+
+<ul>
+<li>LDAPのユーザを <code>/etc/sudoers</code> を紐付けるのが原因だと思うんだけど詳細不明</li>
+<li>specinfraが生成してる部分なのでitamaeとserverspec両方ダメ <img class="emoji" alt=":cry:" src="https://assets-cdn.github.com/images/icons/emoji/unicode/1f622.png">
+</li>
+</ul>
+</li>
+<li>上記を解決しても（後述） <code>itamae ssh</code> すると /tmpにディレクトリを作れなくてこける</li>
+<li>ローカルに対して実行する形式だと無問題</li>
+</ul>
+<pre><code class="sh">INFO : Starting Itamae...
+ERROR : Command mkdir -p /tmp/itamae_tmp failed. (exit status: 1)
+ERROR : stdout | ユーザー sueyoshi_go は'/bin/sh -c mkdir -p /tmp/itamae_tmp' を root として sue445-dev-01 上で実行することは許可されていません。すみません。
+</code></pre>
+</section>
+<section>
+
+<h3>解決策1: <code>specinfra-plain_sudo</code>（社内gem）</h3>
+
+<ul>
+<li>
+<code>sudo /bin/sh -c &lt;元のコマンド&gt;</code> してるところを <code>sudo &lt;元のコマンド&gt;</code> に整形し直すgem</li>
+<li>
+<code>Specinfra::Backend::DrecomSsh</code> のように新しいBackendを追加する形式だとitamaeで使えないので <code>Specinfra::Backend::Ssh</code> にパッチを当てる方式</li>
+<li><a href="https://gist.github.com/sue445/4b8013ad19a3f5917aee">https://gist.github.com/sue445/4b8013ad19a3f5917aee</a></li>
+</ul>
+
+</section>
+<section>
+
+<h3>解決策2: <code>drecom-itamae</code>（社内gem）</h3>
+
+<ul>
+<li>起動する一瞬だけ <code>disable_sudo</code> を有効にするラッパ</li>
+</ul>
+
+</section>
+<section>
+
+<h4>/exe/drecom-itamae</h4>
+<pre><code class="ruby">#!/usr/bin/env ruby
+
+require 'itamae/cli'
+require 'drecom-itamae'
+
+require 'specinfra/helper/set'
+include Specinfra::Helper::Set
+
+set :disable_sudo, true    # 【ここだけ追加】
+
+Itamae::CLI.start
+</code></pre>
+</section>
+<section>
+
+<h4>itamaeの初期化が終わってrecipe実行する直前にsudo使えるようにする</h4>
+<pre><code class="ruby">module Itamae
+  class Runner
+    def initialize_with_enable_sudo(*args)
+      initialize_without_enable_sudo(*args)
+
+      # itamaeの初期化が終わってrecipe実行する直前にsudo使えるようにする
+      Specinfra.configuration.disable_sudo = false
+    end
+    alias_method_chain :initialize, :enable_sudo
+  end
+end
+</code></pre>
+</section>
+<section>
+
+<ul>
+<li>酷いモンキーパッチだけどこれで社内でitamae使えるようになった</li>
+<li>どちらも弊社インフラに起因するものなのでOSSにするつもりはありません <img class="emoji" alt=":innocent:" src="https://assets-cdn.github.com/images/icons/emoji/unicode/1f607.png">
+</li>
+</ul>
+
+</section>
+<section>
+
+<h2>その他便利なプラグイン</h2>
+
+</section>
+<section>
+
+<h3>
+<code>itamae-plugin-recipe-drecom_rails</code>（社内gem）</h3>
+
+<p>Railsアプリあるあるミドルのレシピをひとまとめにgemにした</p>
+
+<ul>
+<li>3つ以上アプリをitamae化をすると似たようなレシピ増産される弊害
+
+<ul>
+<li>飽きるしDRYじゃない</li>
+</ul>
+</li>
+<li>ruby, nginx, redis, memcached, nodejs, percona-server(MySQL) あたりをインストール</li>
+</ul>
+
+</section>
+<section>
+
+<h4>構成</h4>
+<pre><code>lib
+└── itamae
+    └── plugin
+        └── recipe
+            ├── drecom_rails
+            │   ├── cookbooks
+            │   │   ├── files/
+            │   │   ├── memcached.rb
+            │   │   ├── myhome.rb
+            │   │   ├── nginx.rb
+            │   │   ├── nodejs.rb
+            │   │   ├── percona.rb
+            │   │   ├── redis.rb
+            │   │   ├── ruby.rb
+            │   │   ├── setup.rb
+            │   │   └── templates/
+            │   ├── roles
+            │   │   ├── all.rb # ミドル全部入り
+            │   │   ├── cache.rb # memcachedをインストール
+            │   │   ├── db.rb # perconaをインストール
+            │   │   ├── kvs.rb # redisをインストール
+            │   │   └── web.rb # nginx,nodejsをインストール
+            │   └── version.rb
+            └── drecom_rails.rb
+</code></pre>
+<ul>
+<li>roleの中でさらにcookbookのレシピを <code>incliue_recipe</code> している</li>
+</ul>
+
+</section>
+<section>
+
+<h4>利用イメージ</h4>
+
+<p>roles/staging.rb</p>
+<pre><code class="ruby">include_recipe "drecom_rails::roles::all"
+
+# アプリで個別に必要なパッケージをインストール
+include_recipe "../cookbooks/packages/default.rb"
+</code></pre>
+</section>
+<section>
+
+<h4>その他</h4>
+
+<ul>
+<li>レシピだけgemにいれておいて、設定値はnode.ymlから差し込む方式</li>
+<li>ミドル単位でレシピを作ってOSSにするという手もあったけど、社内利用に限定することでシンプルに使えるようにしたかった</li>
+</ul>
+
+</section>
+<section>
+
+<h3>
+<code>itamae-plugin-resource-encrypted_remote_file</code> (OSS)</h3>
+
+<p><a href="https://github.com/sue445/itamae-plugin-resource-encrypted_remote_file">https://github.com/sue445/itamae-plugin-resource-encrypted_remote_file</a></p>
+
+<ul>
+<li>リポジトリには暗号化してコミットしつつ、プロビジョニング時には復号化して転送するためのプラグイン</li>
+<li>Chefでいうところの <a href="https://github.com/thbishop/knife-solo_data_bag">knife-solo_data_bag</a> みたいなやつ</li>
+<li>詳しいこと: <a href="http://sue445.hatenablog.com/entry/2015/05/09/185807">itamae-plugin-resource-encrypted_remote_file を作った - くりにっき</a>
+</li>
+<li>
+<a href="https://github.com/sorah/itamae-secrets">itamae-secrets</a> の方が便利そう <img class="emoji" alt=":innocent:" src="https://assets-cdn.github.com/images/icons/emoji/unicode/1f607.png">
+</li>
+</ul>
+
+</section>
+<section>
+
+<h4>使い方</h4>
+<pre><code class="ruby">encrypted_remote_file "/home/deployer/.ssh/id_rsa" do
+  owner    "root"
+  group    "root"
+  source   "remote_files/id_rsa.encrypted"
+  password ENV["ID_RSA_PASSWORD"]
+end
+</code></pre>
+<ul>
+<li>
+<code>remote_file</code> とだいたい同じ</li>
+<li>暗号化する時にパスワードをかけられるのが特徴</li>
+<li>
+<a href="https://github.com/bkeepers/dotenv">dotenv</a> と併用することを想定してる</li>
+</ul>
+
+</section>
+<section>
+
+<h2>まとめ</h2>
+
+<ul>
+<li>レシピ書くのに飽きたらgemにすると捗る</li>
+<li>OSSにしづらいものは社内gemにしておくとよい</li>
+</ul>
+
+</section>
+<section>
+
+<h2>参考ポエム</h2>
+
+<ul>
+<li>
+<a href="http://sue445.hatenablog.com/entry/2015/12/01/000000">社内gemとOSSのgemのメンテについて - くりにっき</a> <a href="http://b.hatena.ne.jp/entry/http://sue445.hatenablog.com/entry/2015/12/01/000000"><img src="http://b.hatena.ne.jp/entry/image/large/http://sue445.hatenablog.com/entry/2015/12/01/000000" alt="hatebu"></a>
+</li>
+</ul>
 
 <!--
   disable uppercase
